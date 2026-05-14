@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+
+  <title>Pugaling Beach GIS</title>
+
+  <!-- MAPLIBRE -->
+  <link
+    href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+    rel="stylesheet"
+  />
+
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+  <!-- FONT -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      font-family:'Poppins',sans-serif;
+    }
+
+    body{
+      overflow:hidden;
+      background:#07131f;
+      color:white;
+    }
+
+    #map{
+      width:100%;
+      height:100vh;
+    }
+
+    /* =========================
+        TOGGLE BUTTON DESIGN
+    ========================= */
+    .minimize-btn {
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: white;
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      transition: 0.3s;
+      z-index: 25;
+    }
+
+    .minimize-btn:hover {
+      background: rgba(126, 249, 255, 0.3);
+    }
+
+    .collapsed {
+      width: 50px !important;
+      height: 50px !important;
+      padding: 0 !important;
+      overflow: hidden;
+      border-radius: 50% !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .collapsed *:not(.minimize-btn) {
+      display: none !important;
+    }
+
+    .collapsed .minimize-btn {
+      position: relative;
+      top: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      background: transparent;
+      border: none;
+      font-size: 20px;
+    }
+
+    /* =========================
+        TOP BAR
+    ========================= */
+    .top-bar{
+      position:absolute;
+      top:20px;
+      left:50%;
+      transform:translateX(-50%);
+      z-index:20;
+      background:rgba(7,15,25,0.78);
+      backdrop-filter:blur(18px);
+      border-radius:28px;
+      padding:18px 38px;
+      border:1px solid rgba(255,255,255,0.08);
+      box-shadow:
+      0 12px 40px rgba(0,0,0,0.45),
+      inset 0 0 20px rgba(255,255,255,0.03);
+      text-align:center;
+    }
+
+    .top-bar h1{
+      font-size:36px;
+      font-weight:700;
+      background:linear-gradient(
+      90deg,
+      #7ef9ff,
+      #4de2ff,
+      #7cffcb
+      );
+      -webkit-background-clip:text;
+      -webkit-text-fill-color:transparent;
+    }
+
+    .top-bar p{
+      margin-top:5px;
+      font-size:13px;
+      opacity:0.82;
+      letter-spacing:1px;
+    }
+
+    /* =========================
+        SIDEBAR
+    ========================= */
+    .sidebar{
+      position:absolute;
+      top:120px;
+      left:20px;
+      width:320px;
+      z-index:20;
+      background:rgba(7,15,25,0.78);
+      backdrop-filter:blur(18px);
+      border-radius:28px;
+      padding:24px;
+      border:1px solid rgba(255,255,255,0.08);
+      box-shadow:
+      0 12px 40px rgba(0,0,0,0.45),
+      inset 0 0 25px rgba(255,255,255,0.03);
+      transition: all 0.4s ease;
+    }
+
+    .sidebar h2{
+      color:#7ef9ff;
+      margin-bottom:18px;
+      font-size:30px;
+    }
+
+    .card{
+      background:linear-gradient(
+      145deg,
+      rgba(255,255,255,0.06),
+      rgba(255,255,255,0.02)
+      );
+      border-radius:20px;
+      padding:18px;
+      margin-bottom:15px;
+      transition:0.35s ease;
+      border:1px solid rgba(255,255,255,0.06);
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .card:hover{
+      transform:translateY(-5px) scale(1.02);
+      background:rgba(255,255,255,0.08);
+    }
+
+    /* =========================
+        STREET VIEW
+    ========================= */
+    #street-view{
+      position:absolute;
+      top:120px;
+      right:20px;
+      width:520px;
+      height:330px;
+      z-index:30;
+      border-radius:28px;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 15px 45px rgba(0,0,0,0.5);
+      background:#000;
+      display: none;
+    }
+
+    #street-view img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+    }
+
+    #forward-btn{
+      position:absolute;
+      bottom:16px;
+      right:16px;
+      background:rgba(0,0,0,0.65);
+      border:none;
+      color:white;
+      padding:13px 20px;
+      border-radius:14px;
+      font-size:15px;
+      cursor:pointer;
+      transition:0.3s ease;
+      backdrop-filter:blur(10px);
+      font-weight:600;
+    }
+
+    #close-street-view {
+      position:absolute;
+      top:16px;
+      left:16px;
+      background:rgba(255, 60, 60, 0.8);
+      border:none;
+      color:white;
+      width:35px;
+      height:35px;
+      border-radius:50%;
+      font-size:20px;
+      cursor:pointer;
+      z-index:31;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: 0.3s;
+      backdrop-filter: blur(10px);
+    }
+
+    /* =========================
+        LEGEND
+    ========================= */
+    .legend{
+      position:absolute;
+      bottom:20px;
+      right:20px;
+      width:250px;
+      z-index:20;
+      background:rgba(7,15,25,0.78);
+      backdrop-filter:blur(18px);
+      border-radius:28px;
+      padding:22px;
+      border:1px solid rgba(255,255,255,0.08);
+      box-shadow:
+      0 12px 40px rgba(0,0,0,0.45),
+      inset 0 0 20px rgba(255,255,255,0.03);
+      transition: all 0.4s ease;
+    }
+
+    .legend h3{
+      color:#7ef9ff;
+      margin-bottom:16px;
+      font-size:20px;
+    }
+
+    .legend-item{
+      display:flex;
+      align-items:center;
+      gap:12px;
+      margin-bottom:14px;
+      font-size:15px;
+    }
+
+    .dot{
+      width:15px;
+      height:15px;
+      border-radius:50%;
+      box-shadow: 0 0 12px rgba(255,255,255,0.4);
+    }
+
+    /* =========================
+        COORDS & FOOTER
+    ========================= */
+    .footer-note{
+      position:absolute;
+      left:20px;
+      bottom:20px;
+      z-index:20;
+      background:rgba(255,255,255,0.12);
+      backdrop-filter:blur(10px);
+      padding:12px 20px;
+      border-radius:16px;
+      font-size:13px;
+      border:1px solid rgba(255,255,255,0.06);
+    }
+
+    .coordinates{
+      position:absolute;
+      top:20px;
+      right:55px;
+      z-index:20;
+      background:rgba(7,15,25,0.78);
+      backdrop-filter:blur(18px);
+      border-radius:22px;
+      padding:16px 22px;
+      border:1px solid rgba(255,255,255,0.08);
+      font-size:14px;
+      line-height:1.7;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.45);
+      transition: all 0.4s ease;
+    }
+
+    /* =========================
+        POPUP DESIGN
+    ========================= */
+    .maplibregl-popup-content{
+      background:linear-gradient(145deg, #081421, #10253d) !important;
+      color:white !important;
+      border-radius:26px !important;
+      padding:0 !important;
+      overflow:hidden;
+      border:1px solid rgba(255,255,255,0.08);
+      width:320px;
+      backdrop-filter:blur(18px);
+    }
+
+    .popup-box{ padding:24px; }
+    .view-pic-btn {
+      display: block;
+      width: 100%;
+      margin-top: 15px;
+      background: #00d9ff;
+      color: #081421;
+      border: none;
+      padding: 12px;
+      border-radius: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    
+    @media(max-width:768px){
+      .sidebar{ width:calc(100% - 40px); bottom:120px; top:auto; }
+      #street-view{ width:calc(100% - 40px); height:220px; bottom:360px; top:auto; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <h1>Pugaling MAP GIS</h1>
+    <p>Interactive Coastal Mapping System • Maasin City</p>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar" id="sidebar-panel">
+    <button class="minimize-btn" onclick="togglePanel('sidebar-panel', 'ⓘ')">−</button>
+    <h2>Map Information</h2>
+    <div class="card">
+      <h3>🌊 Coastal Mapping</h3>
+      <p>Interactive GIS system for shoreline visualization and route mapping.</p>
+    </div>
+    <div class="card">
+      <h3>🛰️ Smart GIS Features</h3>
+      <p>Includes routes, emergency facilities, and live coordinate tracking.</p>
+    </div>
+    <div class="card">
+      <h3>🚑 Disaster Preparedness</h3>
+      <p>Future support for evacuation planning and hazard analysis.</p>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <!-- STREET VIEW -->
+  <div id="street-view">
+    <button id="close-street-view" title="Close">&times;</button>
+    <img id="street-image" src="images/road1.jpg" alt="Street View">
+    <button id="forward-btn">▶ Forward</button>
+  </div>
+
+  <!-- LEGEND -->
+  <div class="legend" id="legend-panel">
+    <button class="minimize-btn" onclick="togglePanel('legend-panel', '☰')">−</button>
+    <h3>Legend</h3>
+    <div class="legend-item">
+      <div class="dot" style="background:#00ff95;"></div> Start Area
+    </div>
+    <div class="legend-item">
+      <div class="dot" style="background:#ff4d6d;"></div> End Area
+    </div>
+    <div class="legend-item">
+      <div class="dot" style="background:#4db8ff;"></div> Hospital
+    </div>
+    <div class="legend-item">
+      <div class="dot" style="background:#ffd166;"></div> Barangay Hall
+    </div>
+  </div>
+
+  <div class="footer-note">Developed for BSIT Web GIS Project</div>
+
+  <!-- COORDINATES -->
+  <div class="coordinates" id="coords-panel">
+    <button class="minimize-btn" onclick="togglePanel('coords-panel', '⚲')">−</button>
+    <div id="coords">
+      Latitude: -- <br>
+      Longitude: --
+    </div>
+  </div>
+
+  <script>
+    // =====================================
+    // UI MINIMIZE LOGIC
+    // =====================================
+    function togglePanel(panelId, icon) {
+      const panel = document.getElementById(panelId);
+      const btn = panel.querySelector('.minimize-btn');
+      
+      panel.classList.toggle('collapsed');
+      
+      if (panel.classList.contains('collapsed')) {
+        btn.innerHTML = icon;
+      } else {
+        btn.innerHTML = '−';
+      }
+    }
+
+    // =====================================
+    // MAP SETUP
+    // =====================================
+    const map = new maplibregl.Map({
+      container: 'map',
+      style: {
+        version: 8,
+        sources: {
+          satellite: {
+            type: 'raster',
+            tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],
+            tileSize: 256,
+            maxzoom: 17
+          }
+        },
+        layers: [{ id: 'satellite-layer', type: 'raster', source: 'satellite' }]
+      },
+      center: [124.87150, 10.12800],
+      zoom: 17.8,
+      pitch: 45,
+      bearing: -20
+    });
+
+    map.addControl(new maplibregl.NavigationControl());
+
+    // =====================================
+    // STREET VIEW LOGIC
+    // =====================================
+    const streetViewBox = document.getElementById('street-view');
+    const streetImage = document.getElementById('street-image');
+    const forwardBtn = document.getElementById('forward-btn');
+    const closeBtn = document.getElementById('close-street-view');
+
+    let currentGallery = [];
+    let currentImgIndex = 0;
+
+    function loadPictures(imgArray) {
+        currentGallery = imgArray;
+        currentImgIndex = 0;
+        streetImage.src = currentGallery[0];
+        streetViewBox.style.display = 'block';
+    }
+
+    closeBtn.addEventListener('click', () => {
+        streetViewBox.style.display = 'none';
+    });
+
+    forwardBtn.addEventListener('click', () => {
+      if(currentGallery.length === 0) return;
+      currentImgIndex = (currentImgIndex + 1) % currentGallery.length;
+      streetImage.src = currentGallery[currentImgIndex];
+    });
+
+    // =====================================
+    // POPUP HELPER
+    // =====================================
+    function createPopup(title, color, desc, lat, lng, imgArray){
+      const arrayString = JSON.stringify(imgArray).replace(/"/g, '&quot;');
+      return `
+        <div class="popup-box">
+          <div style="font-size:24px; font-weight:700; color:${color}; margin-bottom:8px;">${title}</div>
+          <div style="font-size:14px; opacity:0.9; margin-bottom:15px;">${desc}</div>
+          <div style="background:rgba(255,255,255,0.05); border-radius:10px; padding:10px; font-size:12px;">
+            <strong>Lat:</strong> ${lat} | <strong>Lng:</strong> ${lng}
+          </div>
+          <button class="view-pic-btn" onclick="loadPictures(${arrayString})">
+              📸 View Pictures (${imgArray.length})
+          </button>
+        </div>
+      `;
+    }
+
+    // Markers
+    new maplibregl.Marker({ color:'#00ff95' }).setLngLat([124.86967,10.12798])
+    .setPopup(new maplibregl.Popup().setHTML(createPopup('Start Area', '#00ff95', 'Beginning point.', '10.12798', '124.86967', ['images/road1.jpg'])))
+    .addTo(map);
+
+    new maplibregl.Marker({ color:'#ff4d6d' }).setLngLat([124.87368,10.12760])
+    .setPopup(new maplibregl.Popup().setHTML(createPopup('End Area', '#ff4d6d', 'Final destination.', '10.12760', '124.87368', ['images/road4.jpg'])))
+    .addTo(map);
+
+    new maplibregl.Marker({ color:'#4db8ff' }).setLngLat([124.87299,10.12815])
+    .setPopup(new maplibregl.Popup().setHTML(createPopup('Living Hope Hospital', '#4db8ff', 'Medical facility.', '10.12815', '124.87299', ['LH1.jfif','LH2.jfif','LH3.jfif'])))
+    .addTo(map);
+
+    new maplibregl.Marker({ color:'#ffd166' }).setLngLat([124.87120,10.12850])
+    .setPopup(new maplibregl.Popup().setHTML(createPopup('Barangay Hall', '#ffd166', 'Admin office.', '10.12850', '124.87120', ['images/road2.jpg'])))
+    .addTo(map);
+
+    // Coords tracking
+    map.on('mousemove', (e) => {
+      document.getElementById('coords').innerHTML = `
+        Latitude: ${e.lngLat.lat.toFixed(5)} <br> Longitude: ${e.lngLat.lng.toFixed(5)}
+      `;
+    });
+  </script>
+</body>
+</html>
